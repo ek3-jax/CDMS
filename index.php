@@ -96,7 +96,7 @@
         <div class="card hidden" id="contacts-card">
             <div class="section-header">
                 <h2 class="section-title">GoHighLevel Contacts</h2>
-                <span class="category-badge" style="background: #00bfa5;">GHL</span>
+                <span class="category-badge badge-ghl">GHL</span>
             </div>
             <div class="table-container">
                 <table class="data-table">
@@ -127,7 +127,7 @@
         <div class="card hidden" id="results-card">
             <div class="section-header">
                 <h2 class="section-title">Sync Progress</h2>
-                <span class="category-badge" style="background: #3d5afe;">Close CRM</span>
+                <span class="category-badge badge-close">Close CRM</span>
             </div>
 
             <!-- Progress Bar -->

@@ -500,6 +500,14 @@ table input[type="checkbox"],
     font-weight: 600;
 }
 
+.category-badge.badge-ghl {
+    background: #00bfa5;
+}
+
+.category-badge.badge-close {
+    background: #3d5afe;
+}
+
 /* Progress Bar - matches CAMS */
 .progress-bar {
     width: 100%;
