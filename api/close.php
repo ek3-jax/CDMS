@@ -11,6 +11,7 @@
  */
 
 require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/logger.php';
 
 class CloseClient
 {
@@ -21,6 +22,11 @@ class CloseClient
     {
         $this->apiKey  = CLOSE_API_KEY;
         $this->baseUrl = CLOSE_BASE_URL;
+
+        cdms_log('DEBUG', 'CLOSE', 'Client initialized', [
+            'baseUrl'   => $this->baseUrl,
+            'hasApiKey' => !empty($this->apiKey) ? 'yes' : 'NO - MISSING',
+        ]);
     }
 
     /**
@@ -123,11 +129,20 @@ class CloseClient
     {
         $url = $this->baseUrl . '/lead/';
 
+        cdms_log('INFO', 'CLOSE', 'Creating lead', ['name' => $leadData['name'] ?? 'unknown']);
+
         $response = $this->makeRequest('POST', $url, $leadData);
 
         if ($response['error']) {
+            cdms_log('ERROR', 'CLOSE', 'Failed to create lead', [
+                'error'    => $response['error'],
+                'httpCode' => $response['httpCode'] ?? 0,
+            ]);
             return ['lead' => null, 'error' => $response['error']];
         }
+
+        $leadId = $response['data']['id'] ?? 'unknown';
+        cdms_log('INFO', 'CLOSE', "Lead created: {$leadId}");
 
         return ['lead' => $response['data'], 'error' => null];
     }
@@ -143,11 +158,17 @@ class CloseClient
         $query = urlencode('email:' . $email);
         $url   = $this->baseUrl . '/lead/?query=' . $query;
 
+        cdms_log('DEBUG', 'CLOSE', 'Searching for duplicate', ['email' => $email]);
+
         $response = $this->makeRequest('GET', $url);
 
         if ($response['error']) {
+            cdms_log('ERROR', 'CLOSE', 'Duplicate search failed', ['email' => $email, 'error' => $response['error']]);
             return ['leads' => [], 'error' => $response['error']];
         }
+
+        $count = count($response['data']['data'] ?? []);
+        cdms_log('DEBUG', 'CLOSE', "Duplicate search result: {$count} found", ['email' => $email]);
 
         return [
             'leads' => $response['data']['data'] ?? [],
@@ -193,7 +214,14 @@ class CloseClient
         $curlError    = curl_error($ch);
         curl_close($ch);
 
+        cdms_log('DEBUG', 'CLOSE', "Response received", [
+            'method'       => $method,
+            'httpCode'     => $httpCode,
+            'responseSize' => strlen($responseBody ?: ''),
+        ]);
+
         if ($curlError) {
+            cdms_log('ERROR', 'CLOSE', 'cURL error', ['error' => $curlError, 'url' => $url]);
             return ['data' => null, 'error' => 'cURL error: ' . $curlError, 'httpCode' => 0];
         }
 
@@ -205,6 +233,10 @@ class CloseClient
             } elseif ($responseBody) {
                 $errorMsg .= ': ' . substr($responseBody, 0, 200);
             }
+            cdms_log('ERROR', 'CLOSE', $errorMsg, [
+                'httpCode'     => $httpCode,
+                'responseBody' => substr($responseBody ?: '', 0, 500),
+            ]);
             return ['data' => null, 'error' => $errorMsg, 'httpCode' => $httpCode];
         }
 
