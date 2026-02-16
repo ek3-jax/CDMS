@@ -26,7 +26,6 @@ define('CLOSE_API_KEY',   $config['closeCRM_api_key'] ?? '');
 
 // API Base URLs
 define('GHL_BASE_URL',    'https://services.leadconnectorhq.com');
-define('GHL_API_VERSION', '2021-07-28');
 define('CLOSE_BASE_URL',  'https://api.close.com/api/v1');
 
 // Sync settings

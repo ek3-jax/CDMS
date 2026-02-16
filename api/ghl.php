@@ -3,8 +3,7 @@
  * CDMS - GoHighLevel API Client
  *
  * Handles fetching contacts from GoHighLevel using API v2.
- * Uses the Search Contacts endpoint (POST /contacts/search) as recommended
- * since GET /contacts/ is deprecated.
+ * Uses GET /contacts/ with query parameters.
  */
 
 require_once __DIR__ . '/../includes/config.php';
@@ -14,14 +13,12 @@ class GHLClient
     private string $apiKey;
     private string $locationId;
     private string $baseUrl;
-    private string $apiVersion;
 
     public function __construct()
     {
         $this->apiKey     = GHL_API_KEY;
         $this->locationId = GHL_LOCATION_ID;
         $this->baseUrl    = GHL_BASE_URL;
-        $this->apiVersion = GHL_API_VERSION;
     }
 
     /**
@@ -32,11 +29,11 @@ class GHLClient
     public function fetchAllContacts(): array
     {
         $allContacts = [];
-        $page = 1;
-        $hasMore = true;
+        $startAfterId = null;
+        $startAfter = null;
 
-        while ($hasMore) {
-            $result = $this->searchContacts($page);
+        while (true) {
+            $result = $this->searchContacts(1, '', $startAfterId, $startAfter);
 
             if ($result['error']) {
                 return [
@@ -47,14 +44,24 @@ class GHLClient
             }
 
             $contacts = $result['contacts'] ?? [];
+            if (empty($contacts)) {
+                break;
+            }
+
             $allContacts = array_merge($allContacts, $contacts);
 
-            // Check if there are more pages
             $total = $result['total'] ?? 0;
             if (count($contacts) < GHL_PAGE_LIMIT || count($allContacts) >= $total) {
-                $hasMore = false;
-            } else {
-                $page++;
+                break;
+            }
+
+            // Use the last contact for cursor-based pagination
+            $lastContact = end($contacts);
+            $startAfterId = $lastContact['id'] ?? null;
+            $startAfter = $lastContact['dateAdded'] ?? null;
+
+            if (!$startAfterId) {
+                break;
             }
         }
 
@@ -66,27 +73,34 @@ class GHLClient
     }
 
     /**
-     * Search contacts with pagination.
+     * Get contacts with optional search query and cursor pagination.
      *
-     * @param int    $page  Page number (1-based)
-     * @param string $query Optional search query
+     * @param int         $page          Unused (kept for interface compat), pagination is cursor-based
+     * @param string      $query         Optional search query
+     * @param string|null $startAfterId  Contact ID to start after (cursor)
+     * @param string|null $startAfter    Timestamp to start after (cursor)
      * @return array{contacts: array, total: int, error: string|null}
      */
-    public function searchContacts(int $page = 1, string $query = ''): array
+    public function searchContacts(int $page = 1, string $query = '', ?string $startAfterId = null, ?string $startAfter = null): array
     {
-        $url = $this->baseUrl . '/contacts/search';
-
-        $body = [
+        $params = [
             'locationId' => $this->locationId,
-            'page'       => $page,
-            'pageLimit'  => GHL_PAGE_LIMIT,
+            'limit'      => GHL_PAGE_LIMIT,
         ];
 
         if (!empty($query)) {
-            $body['query'] = $query;
+            $params['query'] = $query;
+        }
+        if ($startAfterId !== null) {
+            $params['startAfterId'] = $startAfterId;
+        }
+        if ($startAfter !== null) {
+            $params['startAfter'] = $startAfter;
         }
 
-        $response = $this->makeRequest('POST', $url, $body);
+        $url = $this->baseUrl . '/contacts/?' . http_build_query($params);
+
+        $response = $this->makeRequest($url);
 
         if ($response['error']) {
             return [
@@ -115,7 +129,7 @@ class GHLClient
     {
         $url = $this->baseUrl . '/contacts/' . urlencode($contactId);
 
-        $response = $this->makeRequest('GET', $url);
+        $response = $this->makeRequest($url);
 
         if ($response['error']) {
             return ['contact' => null, 'error' => $response['error']];
@@ -128,38 +142,29 @@ class GHLClient
     }
 
     /**
-     * Make an HTTP request to the GHL API.
+     * Make a GET request to the GHL API.
      *
-     * @param string     $method  HTTP method
-     * @param string     $url     Full URL
-     * @param array|null $body    Request body (for POST/PUT)
+     * @param string $url Full URL
      * @return array{data: array|null, error: string|null, httpCode: int}
      */
-    private function makeRequest(string $method, string $url, ?array $body = null): array
+    private function makeRequest(string $url): array
     {
         $ch = curl_init();
-
-        $headers = [
-            'Authorization: Bearer ' . $this->apiKey,
-            'Content-Type: application/json',
-            'Accept: application/json',
-            'Version: ' . $this->apiVersion,
-        ];
 
         curl_setopt_array($ch, [
             CURLOPT_URL            => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_TIMEOUT        => 30,
-            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_ENCODING       => '',
+            CURLOPT_MAXREDIRS      => 10,
+            CURLOPT_TIMEOUT        => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST  => 'GET',
+            CURLOPT_HTTPHEADER     => [
+                'Accept: application/json',
+                'Authorization: Bearer ' . $this->apiKey,
+            ],
         ]);
-
-        if ($method === 'POST') {
-            curl_setopt($ch, CURLOPT_POST, true);
-            if ($body !== null) {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
-            }
-        }
 
         $responseBody = curl_exec($ch);
         $httpCode     = curl_getinfo($ch, CURLINFO_HTTP_CODE);
