@@ -1,0 +1,480 @@
+/* To-Dos page specific styles — compact layout */
+
+/* ── Top Bar: title + user chip + stat pills in one row ────── */
+.todos-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.todos-top-left {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.todos-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark-color);
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* User chip — small inline tag */
+.user-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #e9ecef;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+}
+
+.user-chip-name {
+    font-weight: 700;
+    color: var(--dark-color);
+}
+
+.user-chip-divider {
+    color: #adb5bd;
+}
+
+.user-chip-email {
+    color: var(--secondary-text);
+}
+
+.user-chip-change {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0 0.25rem;
+    text-decoration: underline;
+}
+
+.user-chip-change:hover {
+    color: #0056b3;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Stat pills — compact inline badges */
+.stats-bar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 0.25rem 0.65rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.stat-pill-value {
+    font-weight: 800;
+}
+
+.stat-pill-danger {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.stat-pill-warn {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.stat-pill-muted {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+/* ── Email entry bar (compact) ───────────────────────────────── */
+.email-bar {
+    display: none;
+    background: white;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 0.75rem;
+}
+
+.email-bar.show-email-bar {
+    display: block;
+}
+
+.email-bar-inner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.email-bar-label {
+    font-weight: 600;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.email-bar-input {
+    flex: 1;
+    max-width: 400px;
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.9rem;
+}
+
+.email-bar .help-text {
+    margin-top: 0.35rem;
+    margin-left: 5.5rem;
+}
+
+/* ── Filter bar inside card ──────────────────────────────────── */
+.todos-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: normal;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.filter-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.search-filter .form-control {
+    width: 220px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.9rem;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn-small {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* ── To-Do badges ────────────────────────────────────────────── */
+.todo-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.status-open { background-color: #cce5ff; color: #004085; }
+.status-progress { background-color: #fff3cd; color: #856404; }
+.status-waiting { background-color: #e2e3e5; color: #383d41; }
+.status-complete { background-color: #d4edda; color: #155724; }
+
+.priority-critical { background-color: #f8d7da; color: #721c24; }
+.priority-high { background-color: #ffe0b2; color: #e65100; }
+.priority-normal { background-color: #e8f5e9; color: #2e7d32; }
+.priority-low { background-color: #e3f2fd; color: #1565c0; }
+
+/* ── Due date styling ────────────────────────────────────────── */
+.due-date { font-weight: 600; white-space: nowrap; }
+.due-date.overdue { color: #dc3545; }
+.due-date.due-today { color: #e65100; }
+.due-date.due-soon { color: #856404; }
+.due-date.no-date { color: var(--secondary-text); font-weight: normal; font-style: italic; }
+
+/* ── Table enhancements ──────────────────────────────────────── */
+.title-cell {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Sortable columns */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 1.5rem;
+}
+
+.sortable:hover { background-color: #dee2e6; }
+
+.sortable::after {
+    content: '';
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-top: 5px solid #adb5bd;
+    margin-top: 3px;
+}
+
+.sortable.sort-asc::after {
+    border-top: none;
+    border-bottom: 5px solid var(--dark-color);
+    margin-top: -3px;
+}
+
+.sortable.sort-desc::after {
+    border-bottom: none;
+    border-top: 5px solid var(--dark-color);
+    margin-top: 3px;
+}
+
+/* ── Pagination ──────────────────────────────────────────────── */
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-top: 12px;
+    padding: 10px;
+}
+
+#pageInfo { font-weight: 600; color: var(--text-color); }
+
+/* ── Table action buttons ────────────────────────────────────── */
+.btn-edit {
+    padding: 5px 14px;
+    font-size: 0.82em;
+    background-color: #31C8F1;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-weight: 600;
+}
+
+.btn-edit:hover { background-color: #2ab3d9; }
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.empty-state { text-align: center; padding: 40px; color: #6c757d; }
+.empty-state h3 { margin-bottom: 10px; }
+
+/* ── Modal form layout ───────────────────────────────────────── */
+.modal-wide { max-width: 850px; }
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.form-group-grow { flex: 2 !important; }
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.required { color: var(--danger-color); }
+
+.modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.modal-at-link {
+    margin-left: auto;
+    font-size: 0.85rem;
+}
+
+/* ── Ticket List (shown when company selected) ───────────────── */
+.ticket-list-section {
+    margin: 0.75rem 0;
+}
+.ticket-list-section > label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #374151;
+    margin-bottom: 0.35rem;
+    display: block;
+}
+.ticket-list {
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #f9fafb;
+}
+.ticket-list-hint {
+    font-weight: 400;
+    font-size: 0.78rem;
+    color: #6b7280;
+}
+.ticket-list-item {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.35rem 0.65rem;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.ticket-list-item:hover {
+    background: #e8f0fe;
+}
+.ticket-list-item.selected {
+    background: #d1fae5;
+    border-left: 3px solid #10b981;
+    font-weight: 600;
+}
+.ticket-list-item:last-child {
+    border-bottom: none;
+}
+.ticket-list-number {
+    font-weight: 600;
+    color: #2563eb;
+    white-space: nowrap;
+}
+.ticket-list-title {
+    color: #374151;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ticket-list-loading,
+.ticket-list-empty {
+    padding: 0.65rem;
+    font-size: 0.82rem;
+    color: #6b7280;
+    text-align: center;
+}
+
+/* ── Card spacing override for todos page ────────────────────── */
+.todos-top-bar + .email-bar + .card,
+.todos-top-bar + .card,
+#todosCard {
+    padding: 1rem 1.5rem;
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .todos-top-bar { flex-direction: column; align-items: flex-start; }
+    .email-bar-inner { flex-direction: column; align-items: stretch; }
+    .email-bar-input { max-width: 100%; }
+    .email-bar .help-text { margin-left: 0; }
+    .todos-filter-bar { flex-direction: column; align-items: flex-start; }
+    .filter-controls { flex-direction: column; align-items: flex-start; }
+    .search-filter .form-control { width: 100%; }
+    .form-row { flex-direction: column; }
+    .title-cell { max-width: 150px; }
+    .pagination-controls { flex-direction: column; gap: 10px; }
+    .stats-bar { justify-content: flex-start; }
+}
+
+.modal-medium { max-width: 720px; }
+
+#todosTable tbody tr[data-todo-id] { cursor: pointer; }
+
+.todo-view-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem 1.2rem;
+}
+
+.todo-view-item-full { grid-column: 1 / -1; }
+
+.todo-view-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6b7280;
+    margin-bottom: 0.2rem;
+    font-weight: 700;
+}
+
+.todo-view-value {
+    color: #1f2937;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.btn-danger,
+.btn-complete {
+    background: #dc3545;
+    color: #fff;
+    border: none;
+}
+
+.btn-danger:hover,
+.btn-complete:hover {
+    background: #bb2d3b;
+}
+
+.btn-complete {
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.82em;
+    font-weight: 600;
+}
+
+.todo-action-buttons {
+    display: flex;
+    gap: 0.4rem;
+}

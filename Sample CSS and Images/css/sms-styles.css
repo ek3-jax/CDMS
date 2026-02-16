@@ -1,0 +1,274 @@
+/* SMS Pages Styles - CSP Compliant */
+
+/* Header row layout */
+.ticket-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.ticket-header-title {
+    margin: 0;
+}
+
+.ticket-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.checkbox-label-text {
+    font-size: 14px;
+}
+
+.manual-entry-btn {
+    font-size: 13px;
+    padding: 6px 12px;
+}
+
+/* Manual entry container */
+.manual-entry-container {
+    margin-bottom: 15px;
+}
+
+.manual-entry-input-row {
+    display: flex;
+    gap: 10px;
+}
+
+.manual-entry-input {
+    flex: 1;
+}
+
+.manual-entry-action-btn {
+    font-size: 13px;
+    padding: 6px 12px;
+}
+
+.manual-entry-cancel-btn {
+    font-size: 13px;
+    padding: 6px 12px;
+}
+
+.manual-entry-help-text {
+    margin-top: 5px;
+    color: var(--secondary-text);
+    font-size: 12px;
+}
+
+.manual-ticket-selected {
+    margin-top: 10px;
+    padding: 12px;
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    border-radius: 4px;
+}
+
+.manual-ticket-label {
+    font-weight: bold;
+    color: #1976d2;
+    margin-bottom: 5px;
+}
+
+.manual-ticket-number {
+    font-size: 16px;
+    color: #333;
+}
+
+/* Loading and no tickets */
+.loading-tickets {
+    text-align: center;
+    padding: 20px;
+    color: var(--secondary-text);
+}
+
+.error-text {
+    color: var(--danger-color);
+}
+
+.no-tickets-container {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.no-tickets-line {
+    border: none;
+    border-top: 4px solid #000;
+    margin: 0 auto 15px auto;
+    width: 100%;
+}
+
+.no-tickets-message {
+    color: #dc3545;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Pagination */
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-top: 15px;
+}
+
+.page-display {
+    color: var(--text-color);
+}
+
+/* Button disabled state */
+.btn-primary:disabled,
+.btn-primary.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Selection prompt */
+.selection-prompt {
+    text-align: center;
+    margin-top: 15px;
+    color: var(--secondary-text);
+}
+
+/* Submit button */
+.submit-button-full {
+    width: 100%;
+    padding: 15px;
+    font-size: 18px;
+}
+
+/* SMS Send Page Styles */
+.recipient-input-row {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.recipient-input {
+    flex: 1;
+}
+
+.add-recipient-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    font-size: 20px;
+    border-radius: 4px;
+}
+
+.delete-recipient-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    font-size: 24px;
+    border-radius: 4px;
+}
+
+.char-count-info {
+    margin-top: 5px;
+    color: var(--secondary-text);
+    font-size: 14px;
+}
+
+.file-upload-help {
+    margin-top: 5px;
+    color: var(--secondary-text);
+    font-size: 14px;
+}
+
+/* Result card styles */
+.result-card-centered {
+    text-align: center;
+}
+
+.result-message {
+    margin-top: 10px;
+}
+
+/* Modal styles */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-overlay.show {
+    display: flex;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: #000;
+}
+
+.modal-body {
+    margin-bottom: 20px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.load-phone-button {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    font-size: 20px;
+    border-radius: 4px;
+}
