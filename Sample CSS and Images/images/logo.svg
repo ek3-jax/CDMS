@@ -1,0 +1,22 @@
+<svg width="200" height="60" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="200" height="60" fill="#343a40" rx="5"/>
+  
+  <!-- Icon - Alert Bell with Signal Waves -->
+  <g transform="translate(15, 15)">
+    <!-- Signal waves -->
+    <path d="M 5 10 Q 0 15 5 20" stroke="#ffc107" stroke-width="2" fill="none" opacity="0.6"/>
+    <path d="M 25 10 Q 30 15 25 20" stroke="#ffc107" stroke-width="2" fill="none" opacity="0.6"/>
+    
+    <!-- Bell -->
+    <path d="M 15 5 L 12 10 L 12 18 Q 12 22 15 22 Q 18 22 18 18 L 18 10 Z" fill="#007bff"/>
+    <circle cx="15" cy="24" r="1.5" fill="#007bff"/>
+    
+    <!-- Alert indicator -->
+    <circle cx="20" cy="8" r="3" fill="#dc3545"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="50" y="25" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#ffffff">Cydian</text>
+  <text x="50" y="42" font-family="Arial, sans-serif" font-size="12" fill="#adb5bd">Alert System</text>
+</svg>

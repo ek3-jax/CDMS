@@ -1,0 +1,59 @@
+/* File: css/styles.css (in css folder) */
+
+/* Navigation styles */
+.main-nav {
+    background: #343a40;
+    color: white;
+    padding: 1rem 2rem;
+    margin: -20px -20px 20px -20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.main-nav h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+}
+.nav-links {
+    display: flex;
+    gap: 1rem;
+}
+.nav-links a {
+    color: #adb5bd;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+.nav-links a:hover {
+    color: white;
+    background: rgba(255,255,255,0.1);
+}
+.nav-links a.active {
+    background: #007bff;
+    color: white;
+}
+
+/* Original styles */
+body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+form { display: flex; flex-direction: column; }
+.section { margin-bottom: 20px; border: 1px solid #ddd; padding: 10px; border-radius: 5px; }
+h2 { margin-top: 0; }
+label { margin-top: 10px; }
+select, input[type="text"], textarea, button { margin-top: 5px; padding: 8px; }
+input[type="text"][readonly] { background: #f0f0f0; }
+button { background: #007bff; color: white; border: none; cursor: pointer; }
+button:hover { background: #0056b3; }
+button:disabled { background: #ccc; cursor: not-allowed; }
+.checkbox-group { margin-top: 10px; }
+.checkbox-group label { display: block; margin-top: 5px; }
+.contact-block { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+#addContact { margin-top: 10px; background: #28a745; }
+#addContact:hover { background: #218838; }
+#status { margin-top: 20px; color: green; }
+#syncCompanies { margin-bottom: 20px; }
+.contacts-table { width: 100%; border-collapse: collapse; }
+.contacts-table th, .contacts-table td { padding: 8px; text-align: left; border: 1px solid #ddd; }
+.contacts-table th { background: #f2f2f2; }
+.view-contacts-btn { background: #ffc107; color: black; margin-left: 10px; }
+.view-contacts-btn:hover { background: #e0a800; }
+.company-info { margin-top: 10px; }
+.view-contacts-section { display: none; margin-top: 20px; }
