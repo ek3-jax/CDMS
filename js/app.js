@@ -87,7 +87,7 @@
 
         els.fetchBtn.disabled = true;
         els.pushBtn.disabled = true;
-        els.fetchBtn.innerHTML = '<span class="cdms-spinner"></span> Fetching...';
+        els.fetchBtn.innerHTML = '<span class="spinner"></span> Fetching...';
 
         clearAlert();
         clearLog();
@@ -138,7 +138,7 @@
 
         els.pushBtn.disabled = true;
         els.fetchBtn.disabled = true;
-        els.pushBtn.innerHTML = '<span class="cdms-spinner"></span> Syncing...';
+        els.pushBtn.innerHTML = '<span class="spinner"></span> Syncing...';
 
         showElement(els.resultsCard);
         showElement(els.progressWrap);
@@ -201,9 +201,8 @@
         var html = '';
 
         if (contacts.length === 0) {
-            html = '<tr><td colspan="6" class="cdms-empty">' +
-                   '<div class="cdms-empty__text">No contacts to display</div>' +
-                   '</td></tr>';
+            html = '<tr><td colspan="6" class="empty-state">' +
+                   'No contacts to display</td></tr>';
             els.contactsTable.innerHTML = html;
             return;
         }
@@ -218,7 +217,7 @@
             var source = escapeHtml(c.source || '-');
 
             html += '<tr data-contact-id="' + escapeHtml(String(id)) + '">' +
-                    '<td class="cdms-table__checkbox">' +
+                    '<td class="col-checkbox">' +
                     '<input type="checkbox" class="contact-cb" data-idx="' + i + '" checked>' +
                     '</td>' +
                     '<td>' + escapeHtml(name) + '</td>' +
@@ -330,7 +329,7 @@
         renderContactsTable(filtered);
     }
 
-    // --- Logging ---
+    // --- Logging (matches CAMS log-entry pattern) ---
     function log(type, message) {
         if (!els.logContainer) return;
 
@@ -340,8 +339,8 @@
                    padZero(now.getSeconds());
 
         var entry = document.createElement('div');
-        entry.className = 'cdms-log__entry cdms-log__entry--' + type;
-        entry.innerHTML = '<span class="cdms-log__time">[' + time + ']</span>' +
+        entry.className = 'log-entry ' + type;
+        entry.innerHTML = '<span class="log-time">[' + time + ']</span> ' +
                           escapeHtml(message);
 
         els.logContainer.appendChild(entry);
@@ -354,10 +353,10 @@
         }
     }
 
-    // --- Alerts ---
+    // --- Alerts (matches CAMS alert pattern) ---
     function showAlert(type, message) {
         if (!els.alertArea) return;
-        els.alertArea.innerHTML = '<div class="cdms-alert cdms-alert--' + type + '">' +
+        els.alertArea.innerHTML = '<div class="alert ' + type + '">' +
                                   escapeHtml(message) + '</div>';
     }
 
@@ -372,9 +371,7 @@
         if (els.progressBar) {
             els.progressBar.style.width = pct + '%';
             if (pct >= 100) {
-                els.progressBar.classList.add('cdms-progress__bar--success');
-            } else {
-                els.progressBar.classList.remove('cdms-progress__bar--success');
+                els.progressBar.textContent = 'Complete';
             }
         }
     }
@@ -396,11 +393,11 @@
     }
 
     function showElement(el) {
-        if (el) el.style.display = '';
+        if (el) el.classList.remove('hidden');
     }
 
     function hideElement(el) {
-        if (el) el.style.display = 'none';
+        if (el) el.classList.add('hidden');
     }
 
     // --- Boot ---
