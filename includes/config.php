@@ -21,7 +21,7 @@ if (file_exists($serverConfigPath)) {
 
 // Map config array values to constants
 define('GHL_API_KEY',     $config['GHL_api_key']     ?? '');
-define('GHL_LOCATION_ID', $config['GHL_location_id'] ?? '9bOYUaxH07bDEiymvTNd');
+define('GHL_LOCATION_ID', $config['GHL_loc_key']     ?? '9bOYUaxH07bDEiymvTNd');
 define('CLOSE_API_KEY',   $config['closeCRM_api_key'] ?? '');
 
 // API Base URLs
