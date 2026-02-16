@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/logger.php';
 
 class GHLClient
 {
@@ -19,6 +20,12 @@ class GHLClient
         $this->apiKey     = GHL_API_KEY;
         $this->locationId = GHL_LOCATION_ID;
         $this->baseUrl    = GHL_BASE_URL;
+
+        cdms_log('DEBUG', 'GHL', 'Client initialized', [
+            'locationId' => $this->locationId,
+            'baseUrl'    => $this->baseUrl,
+            'hasApiKey'  => !empty($this->apiKey) ? 'yes' : 'NO - MISSING',
+        ]);
     }
 
     /**
@@ -100,9 +107,15 @@ class GHLClient
 
         $url = $this->baseUrl . '/contacts/?' . http_build_query($params);
 
+        cdms_log('INFO', 'GHL', 'Fetching contacts', ['url' => $url]);
+
         $response = $this->makeRequest($url);
 
         if ($response['error']) {
+            cdms_log('ERROR', 'GHL', 'Failed to fetch contacts', [
+                'error'    => $response['error'],
+                'httpCode' => $response['httpCode'] ?? 0,
+            ]);
             return [
                 'contacts' => [],
                 'total'    => 0,
@@ -111,10 +124,13 @@ class GHLClient
         }
 
         $data = $response['data'];
+        $count = count($data['contacts'] ?? []);
+        $total = $data['total'] ?? 0;
+        cdms_log('INFO', 'GHL', "Fetched {$count} contacts (total: {$total})");
 
         return [
             'contacts' => $data['contacts'] ?? [],
-            'total'    => $data['total'] ?? 0,
+            'total'    => $total,
             'error'    => null,
         ];
     }
@@ -171,7 +187,13 @@ class GHLClient
         $curlError    = curl_error($ch);
         curl_close($ch);
 
+        cdms_log('DEBUG', 'GHL', "Response received", [
+            'httpCode'     => $httpCode,
+            'responseSize' => strlen($responseBody ?: ''),
+        ]);
+
         if ($curlError) {
+            cdms_log('ERROR', 'GHL', 'cURL error', ['error' => $curlError, 'url' => $url]);
             return ['data' => null, 'error' => 'cURL error: ' . $curlError, 'httpCode' => 0];
         }
 
@@ -183,6 +205,10 @@ class GHLClient
             } elseif ($responseBody) {
                 $errorMsg .= ': ' . substr($responseBody, 0, 200);
             }
+            cdms_log('ERROR', 'GHL', $errorMsg, [
+                'httpCode'    => $httpCode,
+                'responseBody' => substr($responseBody ?: '', 0, 500),
+            ]);
             return ['data' => null, 'error' => $errorMsg, 'httpCode' => $httpCode];
         }
 

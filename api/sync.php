@@ -13,6 +13,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/ghl.php';
 require_once __DIR__ . '/close.php';
+require_once __DIR__ . '/../includes/logger.php';
 
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -23,6 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $input  = json_decode(file_get_contents('php://input'), true);
 $action = $input['action'] ?? '';
+
+cdms_log('INFO', 'SYNC', "Action requested: {$action}");
 
 try {
     switch ($action) {
@@ -44,6 +47,10 @@ try {
             break;
     }
 } catch (Throwable $e) {
+    cdms_log('ERROR', 'SYNC', 'Uncaught exception', [
+        'message' => $e->getMessage(),
+        'file'    => $e->getFile() . ':' . $e->getLine(),
+    ]);
     http_response_code(500);
     echo json_encode([
         'error' => 'Internal error: ' . $e->getMessage(),
@@ -55,10 +62,12 @@ try {
  */
 function handleFetch(): void
 {
+    cdms_log('INFO', 'SYNC', 'Starting GHL fetch all contacts');
     $ghl    = new GHLClient();
     $result = $ghl->fetchAllContacts();
 
     if ($result['error']) {
+        cdms_log('ERROR', 'SYNC', 'Fetch failed', ['error' => $result['error'], 'partial' => $result['total']]);
         http_response_code(502);
         echo json_encode([
             'error'    => $result['error'],
@@ -68,6 +77,7 @@ function handleFetch(): void
         return;
     }
 
+    cdms_log('INFO', 'SYNC', "Fetch complete: {$result['total']} contacts");
     echo json_encode([
         'success'  => true,
         'contacts' => $result['contacts'],
@@ -86,11 +96,13 @@ function handlePush(array $input): void
     $contacts = $input['contacts'] ?? [];
 
     if (empty($contacts)) {
+        cdms_log('ERROR', 'SYNC', 'Push called with no contacts');
         http_response_code(400);
         echo json_encode(['error' => 'No contacts provided']);
         return;
     }
 
+    cdms_log('INFO', 'SYNC', 'Starting push to Close', ['contactCount' => count($contacts)]);
     $close   = new CloseClient();
     $results = [
         'created'    => 0,
@@ -149,6 +161,12 @@ function handlePush(array $input): void
         usleep(200000); // 200ms
     }
 
+    cdms_log('INFO', 'SYNC', 'Push complete', [
+        'created' => $results['created'],
+        'skipped' => $results['skipped'],
+        'failed'  => $results['failed'],
+    ]);
+
     echo json_encode([
         'success' => true,
         'results' => $results,
@@ -163,14 +181,19 @@ function handlePreview(array $input): void
     $page  = $input['page'] ?? 1;
     $query = $input['query'] ?? '';
 
+    cdms_log('INFO', 'SYNC', 'Preview requested', ['page' => $page, 'query' => $query]);
+
     $ghl    = new GHLClient();
     $result = $ghl->searchContacts($page, $query);
 
     if ($result['error']) {
+        cdms_log('ERROR', 'SYNC', 'Preview failed', ['error' => $result['error']]);
         http_response_code(502);
         echo json_encode(['error' => $result['error']]);
         return;
     }
+
+    cdms_log('INFO', 'SYNC', "Preview complete: {$result['total']} contacts");
 
     echo json_encode([
         'success'  => true,
