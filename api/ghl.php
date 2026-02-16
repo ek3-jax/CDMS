@@ -178,6 +178,7 @@ class GHLClient
             CURLOPT_CUSTOMREQUEST  => 'GET',
             CURLOPT_HTTPHEADER     => [
                 'Accept: application/json',
+                'Version: 2021-07-28',
                 'Authorization: Bearer ' . $this->apiKey,
             ],
         ]);
