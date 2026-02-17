@@ -213,6 +213,134 @@ class GHLClient
     }
 
     /**
+     * Fetch all tags for the location.
+     *
+     * @return array{tags: array, error: string|null}
+     */
+    public function getTags(): array
+    {
+        $url = $this->baseUrl . '/locations/' . urlencode($this->locationId) . '/tags';
+
+        cdms_log('INFO', 'GHL', 'Fetching tags for location');
+
+        $response = $this->makeRequest('GET', $url);
+
+        if ($response['error']) {
+            cdms_log('ERROR', 'GHL', 'Failed to fetch tags', ['error' => $response['error']]);
+            return ['tags' => [], 'error' => $response['error']];
+        }
+
+        $tags = $response['data']['tags'] ?? [];
+        cdms_log('INFO', 'GHL', 'Fetched ' . count($tags) . ' tags');
+
+        return ['tags' => $tags, 'error' => null];
+    }
+
+    /**
+     * Search contacts using POST /contacts/search with advanced filtering.
+     *
+     * Supports filtering by tags and smart list ID.
+     * Automatically paginates through all results.
+     * Excludes contacts without an email address.
+     *
+     * @param string $tag         Tag name to filter by (optional)
+     * @param string $smartListId Smart list ID to filter by (optional)
+     * @return array{contacts: array, total: int, error: string|null}
+     */
+    public function searchContactsAdvanced(string $tag = '', string $smartListId = ''): array
+    {
+        $allContacts = [];
+        $searchAfter = null;
+
+        while (true) {
+            $body = [
+                'locationId' => $this->locationId,
+                'pageLimit'  => GHL_PAGE_LIMIT,
+            ];
+
+            if (!empty($smartListId)) {
+                $body['smartListId'] = $smartListId;
+            }
+
+            if (!empty($tag)) {
+                $body['filterGroups'] = [
+                    [
+                        'filters' => [
+                            [
+                                'field'    => 'tags',
+                                'operator' => 'contains',
+                                'value'    => $tag,
+                            ],
+                        ],
+                    ],
+                ];
+            }
+
+            if ($searchAfter !== null) {
+                $body['searchAfter'] = $searchAfter;
+            }
+
+            $url = $this->baseUrl . '/contacts/search';
+
+            cdms_log('INFO', 'GHL', 'Searching contacts (advanced)', [
+                'tag'         => $tag ?: '(none)',
+                'smartListId' => $smartListId ?: '(none)',
+                'page'        => count($allContacts),
+            ]);
+
+            $response = $this->makeRequest('POST', $url, $body);
+
+            if ($response['error']) {
+                cdms_log('ERROR', 'GHL', 'Advanced search failed', ['error' => $response['error']]);
+                return [
+                    'contacts' => $allContacts,
+                    'total'    => count($allContacts),
+                    'error'    => $response['error'],
+                ];
+            }
+
+            $data = $response['data'];
+            $contacts = $data['contacts'] ?? [];
+
+            if (empty($contacts)) {
+                break;
+            }
+
+            // Filter out contacts without email
+            foreach ($contacts as $contact) {
+                if (!empty($contact['email'])) {
+                    $allContacts[] = $contact;
+                }
+            }
+
+            $total = $data['total'] ?? 0;
+
+            // Check for next page cursor
+            $meta = $data['meta'] ?? [];
+            $nextPageUrl = $meta['nextPageUrl'] ?? '';
+            $searchAfter = $meta['searchAfter'] ?? null;
+
+            if (empty($searchAfter) && empty($nextPageUrl)) {
+                break;
+            }
+
+            // Safety cap
+            if (count($allContacts) >= 5000) {
+                cdms_log('INFO', 'GHL', 'Contact search capped at 5000');
+                break;
+            }
+        }
+
+        cdms_log('INFO', 'GHL', 'Advanced search complete', ['total' => count($allContacts)]);
+
+        return [
+            'contacts' => $allContacts,
+            'total'    => count($allContacts),
+            'error'    => null,
+        ];
+    }
+
+    /**
      * Make an HTTP request to the GHL API.
      *
      * @param string     $method HTTP method (GET or POST)

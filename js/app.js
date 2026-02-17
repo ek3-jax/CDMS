@@ -58,6 +58,8 @@
         els.flowCloseCount = document.getElementById('flow-close-count');
         els.alertArea     = document.getElementById('alert-area');
         els.searchInput   = document.getElementById('search-input');
+        els.filterTag     = document.getElementById('filter-tag');
+        els.filterSmartList = document.getElementById('filter-smartlist');
 
         els.fetchBtn.addEventListener('click', handleFetch);
         els.pushBtn.addEventListener('click', handlePush);
@@ -66,6 +68,24 @@
         if (els.searchInput) {
             els.searchInput.addEventListener('input', handleSearch);
         }
+
+        // Load available tags into the dropdown
+        loadTags();
+    }
+
+    function loadTags() {
+        apiCall('fetchTags', {}, function (status, response) {
+            if (response.error || !response.tags) return;
+
+            var tags = response.tags;
+            for (var i = 0; i < tags.length; i++) {
+                var tagName = tags[i].name || tags[i];
+                var opt = document.createElement('option');
+                opt.value = tagName;
+                opt.textContent = tagName;
+                els.filterTag.appendChild(opt);
+            }
+        });
     }
 
     function initActivitySync() {
@@ -136,9 +156,22 @@
         clearLog();
         hideElement(els.resultsCard);
 
+        var fetchData = {};
+        var tagVal = els.filterTag ? els.filterTag.value : '';
+        var smartListVal = els.filterSmartList ? els.filterSmartList.value.trim() : '';
+
+        if (tagVal) {
+            fetchData.tag = tagVal;
+            log('info', 'Filtering by tag: ' + tagVal);
+        }
+        if (smartListVal) {
+            fetchData.smartListId = smartListVal;
+            log('info', 'Filtering by Smart List: ' + smartListVal);
+        }
+
         log('info', 'Connecting to GoHighLevel API...');
 
-        apiCall('fetch', {}, function (status, response) {
+        apiCall('fetch', fetchData, function (status, response) {
             state.fetching = false;
             els.fetchBtn.disabled = false;
             els.fetchBtn.innerHTML = 'Fetch GHL Contacts';
