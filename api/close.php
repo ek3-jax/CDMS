@@ -177,6 +177,68 @@ class CloseClient
     }
 
     /**
+     * Fetch activities from Close CRM with pagination.
+     *
+     * @param string $type       Activity type: note, call, email, meeting, or empty for all
+     * @param int    $skip       Offset for pagination
+     * @param int    $limit      Results per page
+     * @param string $dateAfter  Only activities created after this ISO date
+     * @return array{activities: array, hasMore: bool, error: string|null}
+     */
+    public function fetchActivities(string $type = '', int $skip = 0, int $limit = 100, string $dateAfter = ''): array
+    {
+        $endpoint = !empty($type) ? "/activity/{$type}/" : '/activity/';
+        $params = [
+            '_skip'  => $skip,
+            '_limit' => $limit,
+        ];
+        if (!empty($dateAfter)) {
+            $params['date_created__gt'] = $dateAfter;
+        }
+
+        $url = $this->baseUrl . $endpoint . '?' . http_build_query($params);
+
+        cdms_log('INFO', 'CLOSE', 'Fetching activities', ['type' => $type ?: 'all', 'skip' => $skip]);
+
+        $response = $this->makeRequest('GET', $url);
+
+        if ($response['error']) {
+            cdms_log('ERROR', 'CLOSE', 'Failed to fetch activities', ['error' => $response['error']]);
+            return ['activities' => [], 'hasMore' => false, 'error' => $response['error']];
+        }
+
+        $data = $response['data'];
+        $activities = $data['data'] ?? [];
+        $hasMore = $data['has_more'] ?? false;
+
+        cdms_log('INFO', 'CLOSE', 'Fetched ' . count($activities) . ' activities', ['hasMore' => $hasMore]);
+
+        return ['activities' => $activities, 'hasMore' => $hasMore, 'error' => null];
+    }
+
+    /**
+     * Fetch a single Close contact by ID to get their email.
+     *
+     * @param string $contactId Close contact ID (cont_...)
+     * @return array{contact: array|null, error: string|null}
+     */
+    public function getContact(string $contactId): array
+    {
+        $url = $this->baseUrl . '/contact/' . urlencode($contactId) . '/';
+
+        cdms_log('DEBUG', 'CLOSE', 'Fetching contact', ['contactId' => $contactId]);
+
+        $response = $this->makeRequest('GET', $url);
+
+        if ($response['error']) {
+            cdms_log('ERROR', 'CLOSE', 'Failed to fetch contact', ['contactId' => $contactId, 'error' => $response['error']]);
+            return ['contact' => null, 'error' => $response['error']];
+        }
+
+        return ['contact' => $response['data'], 'error' => null];
+    }
+
+    /**
      * Make an HTTP request to the Close API.
      *
      * @param string     $method  HTTP method

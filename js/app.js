@@ -2,11 +2,9 @@
  * CDMS - Cydian Data Management System
  * Frontend Application Controller
  *
- * Handles the GHL -> Close contact sync workflow:
- *   1. Fetch contacts from GoHighLevel
- *   2. Display them for review and selection
- *   3. Push selected contacts to Close CRM
- *   4. Show sync results
+ * Handles two sync workflows:
+ *   1. GHL -> Close: Fetch contacts from GoHighLevel, push to Close CRM
+ *   2. Close -> GHL: Fetch activities from Close, push as notes to GHL
  */
 
 (function () {
@@ -17,7 +15,12 @@
         contacts: [],
         selectedIds: {},
         syncing: false,
-        fetching: false
+        fetching: false,
+        // Activity sync state
+        activities: [],
+        selectedActIds: {},
+        fetchingActivities: false,
+        syncingActivities: false
     };
 
     // --- DOM References ---
@@ -43,6 +46,26 @@
         els.alertArea     = document.getElementById('alert-area');
         els.searchInput   = document.getElementById('search-input');
 
+        // Activity sync elements
+        els.fetchActBtn      = document.getElementById('btn-fetch-activities');
+        els.syncActBtn       = document.getElementById('btn-sync-activities');
+        els.actTypeSelect    = document.getElementById('activity-type-select');
+        els.actDateAfter     = document.getElementById('activity-date-after');
+        els.selectAllActCb   = document.getElementById('cb-select-all-act');
+        els.activitiesTable  = document.getElementById('activities-tbody');
+        els.activitiesCard   = document.getElementById('activities-card');
+        els.actResultsCard   = document.getElementById('activity-results-card');
+        els.actLogContainer  = document.getElementById('activity-sync-log');
+        els.actProgressBar   = document.getElementById('act-progress-bar');
+        els.actProgressWrap  = document.getElementById('act-progress-wrap');
+        els.statActTotal     = document.getElementById('stat-act-total');
+        els.statActSynced    = document.getElementById('stat-act-synced');
+        els.statActNoMatch   = document.getElementById('stat-act-nomatch');
+        els.statActFailed    = document.getElementById('stat-act-failed');
+        els.flowActCloseCount = document.getElementById('flow-act-close-count');
+        els.flowActGhlCount  = document.getElementById('flow-act-ghl-count');
+        els.actAlertArea     = document.getElementById('activity-alert-area');
+
         // Bind events
         els.fetchBtn.addEventListener('click', handleFetch);
         els.pushBtn.addEventListener('click', handlePush);
@@ -51,6 +74,11 @@
         if (els.searchInput) {
             els.searchInput.addEventListener('input', handleSearch);
         }
+
+        // Activity sync events
+        els.fetchActBtn.addEventListener('click', handleFetchActivities);
+        els.syncActBtn.addEventListener('click', handleSyncActivities);
+        els.selectAllActCb.addEventListener('change', handleSelectAllActivities);
     }
 
     // --- API Helper ---
@@ -398,6 +426,267 @@
 
     function hideElement(el) {
         if (el) el.classList.add('hidden');
+    }
+
+    // ==========================================================
+    // Activity Sync: Close CRM -> GoHighLevel
+    // ==========================================================
+
+    function handleFetchActivities() {
+        if (state.fetchingActivities) return;
+
+        state.fetchingActivities = true;
+        state.activities = [];
+        state.selectedActIds = {};
+
+        els.fetchActBtn.disabled = true;
+        els.syncActBtn.disabled = true;
+        els.fetchActBtn.innerHTML = '<span class="spinner"></span> Fetching...';
+
+        clearActAlert();
+        clearActLog();
+        hideElement(els.actResultsCard);
+
+        var type = els.actTypeSelect.value;
+        var dateAfter = els.actDateAfter.value || '';
+
+        actLog('info', 'Connecting to Close CRM API...');
+
+        apiCall('fetchActivities', { activityType: type, dateAfter: dateAfter }, function (status, response) {
+            state.fetchingActivities = false;
+            els.fetchActBtn.disabled = false;
+            els.fetchActBtn.innerHTML = 'Fetch Close Activities';
+
+            if (response.error) {
+                actLog('error', 'Error: ' + response.error);
+                showActAlert('danger', 'Failed to fetch activities: ' + response.error);
+                return;
+            }
+
+            state.activities = response.activities || [];
+            actLog('success', 'Fetched ' + state.activities.length + ' activities from Close CRM');
+
+            els.flowActCloseCount.textContent = state.activities.length;
+            els.statActTotal.textContent = state.activities.length;
+
+            renderActivitiesTable(state.activities);
+            showElement(els.activitiesCard);
+
+            if (state.activities.length > 0) {
+                els.syncActBtn.disabled = false;
+                showActAlert('info', 'Select activities to sync, then click "Sync to GHL as Notes".');
+            } else {
+                showActAlert('warning', 'No activities found in Close CRM.');
+            }
+        });
+    }
+
+    function handleSyncActivities() {
+        var selected = getSelectedActivities();
+
+        if (selected.length === 0) {
+            showActAlert('warning', 'Please select at least one activity to sync.');
+            return;
+        }
+
+        if (state.syncingActivities) return;
+        state.syncingActivities = true;
+
+        els.syncActBtn.disabled = true;
+        els.fetchActBtn.disabled = true;
+        els.syncActBtn.innerHTML = '<span class="spinner"></span> Syncing...';
+
+        showElement(els.actResultsCard);
+        showElement(els.actProgressWrap);
+        setActProgress(10);
+
+        actLog('info', 'Syncing ' + selected.length + ' activities to GoHighLevel...');
+
+        apiCall('syncActivities', { activities: selected }, function (status, response) {
+            state.syncingActivities = false;
+            els.syncActBtn.disabled = false;
+            els.fetchActBtn.disabled = false;
+            els.syncActBtn.innerHTML = 'Sync to GHL as Notes';
+
+            if (response.error) {
+                actLog('error', 'Sync error: ' + response.error);
+                showActAlert('danger', 'Sync failed: ' + response.error);
+                setActProgress(100);
+                return;
+            }
+
+            var results = response.results || {};
+            var details = results.details || [];
+
+            els.statActSynced.textContent = results.synced || 0;
+            els.statActNoMatch.textContent = results.noMatch || 0;
+            els.statActFailed.textContent = results.failed || 0;
+            els.flowActGhlCount.textContent = results.synced || 0;
+
+            for (var i = 0; i < details.length; i++) {
+                var d = details[i];
+                var label = d.type + (d.email ? ' (' + d.email + ')' : '');
+
+                if (d.status === 'synced') {
+                    actLog('success', 'Synced: ' + label);
+                } else if (d.status === 'noMatch') {
+                    actLog('warning', 'No match: ' + label + ' - ' + d.reason);
+                } else {
+                    actLog('error', 'Failed: ' + label + ' - ' + d.reason);
+                }
+            }
+
+            setActProgress(100);
+
+            var msg = 'Activity sync complete. Synced: ' + (results.synced || 0) +
+                      ', No Match: ' + (results.noMatch || 0) +
+                      ', Failed: ' + (results.failed || 0);
+            actLog('info', msg);
+
+            if (results.failed > 0) {
+                showActAlert('warning', msg);
+            } else {
+                showActAlert('success', msg);
+            }
+        });
+    }
+
+    function renderActivitiesTable(activities) {
+        var html = '';
+
+        if (activities.length === 0) {
+            html = '<tr><td colspan="5" class="empty-state">No activities to display</td></tr>';
+            els.activitiesTable.innerHTML = html;
+            return;
+        }
+
+        for (var i = 0; i < activities.length; i++) {
+            var a = activities[i];
+            var type = escapeHtml(a._type || 'Unknown');
+            var email = escapeHtml(a._email || '-');
+            var summary = escapeHtml(getActivitySummary(a));
+            var date = escapeHtml((a.date_created || '').substring(0, 10));
+
+            html += '<tr>' +
+                    '<td class="col-checkbox">' +
+                    '<input type="checkbox" class="activity-cb" data-idx="' + i + '" checked>' +
+                    '</td>' +
+                    '<td>' + type + '</td>' +
+                    '<td>' + email + '</td>' +
+                    '<td>' + summary + '</td>' +
+                    '<td>' + date + '</td>' +
+                    '</tr>';
+
+            state.selectedActIds[i] = true;
+        }
+
+        els.activitiesTable.innerHTML = html;
+        els.selectAllActCb.checked = true;
+
+        var checkboxes = els.activitiesTable.querySelectorAll('.activity-cb');
+        for (var j = 0; j < checkboxes.length; j++) {
+            checkboxes[j].addEventListener('change', handleActCheckboxChange);
+        }
+    }
+
+    function getActivitySummary(activity) {
+        var type = activity._type || '';
+        switch (type) {
+            case 'Note':
+                return (activity.note || '').substring(0, 80);
+            case 'Call':
+                return (activity.direction || '') + ' call, ' + (activity.duration || 0) + 's';
+            case 'Email':
+                return activity.subject || '(no subject)';
+            case 'Meeting':
+                return activity.title || '(untitled meeting)';
+            default:
+                return type;
+        }
+    }
+
+    function handleSelectAllActivities() {
+        var checked = els.selectAllActCb.checked;
+        var checkboxes = els.activitiesTable.querySelectorAll('.activity-cb');
+
+        for (var i = 0; i < checkboxes.length; i++) {
+            checkboxes[i].checked = checked;
+            var idx = parseInt(checkboxes[i].getAttribute('data-idx'), 10);
+            if (checked) {
+                state.selectedActIds[idx] = true;
+            } else {
+                delete state.selectedActIds[idx];
+            }
+        }
+        updateSyncActButtonLabel();
+    }
+
+    function handleActCheckboxChange(e) {
+        var idx = parseInt(e.target.getAttribute('data-idx'), 10);
+        if (e.target.checked) {
+            state.selectedActIds[idx] = true;
+        } else {
+            delete state.selectedActIds[idx];
+        }
+
+        var checkboxes = els.activitiesTable.querySelectorAll('.activity-cb');
+        var allChecked = true;
+        for (var i = 0; i < checkboxes.length; i++) {
+            if (!checkboxes[i].checked) { allChecked = false; break; }
+        }
+        els.selectAllActCb.checked = allChecked;
+        updateSyncActButtonLabel();
+    }
+
+    function getSelectedActivities() {
+        var selected = [];
+        var keys = Object.keys(state.selectedActIds);
+        for (var i = 0; i < keys.length; i++) {
+            var idx = parseInt(keys[i], 10);
+            if (state.activities[idx]) {
+                selected.push(state.activities[idx]);
+            }
+        }
+        return selected;
+    }
+
+    function updateSyncActButtonLabel() {
+        var count = Object.keys(state.selectedActIds).length;
+        if (!state.syncingActivities) {
+            els.syncActBtn.innerHTML = 'Sync to GHL as Notes' + (count > 0 ? ' (' + count + ')' : '');
+        }
+    }
+
+    // --- Activity Log/Alert/Progress helpers ---
+    function actLog(type, message) {
+        if (!els.actLogContainer) return;
+        var now = new Date();
+        var time = padZero(now.getHours()) + ':' + padZero(now.getMinutes()) + ':' + padZero(now.getSeconds());
+        var entry = document.createElement('div');
+        entry.className = 'log-entry ' + type;
+        entry.innerHTML = '<span class="log-time">[' + time + ']</span> ' + escapeHtml(message);
+        els.actLogContainer.appendChild(entry);
+        els.actLogContainer.scrollTop = els.actLogContainer.scrollHeight;
+    }
+
+    function clearActLog() {
+        if (els.actLogContainer) els.actLogContainer.innerHTML = '';
+    }
+
+    function showActAlert(type, message) {
+        if (!els.actAlertArea) return;
+        els.actAlertArea.innerHTML = '<div class="alert ' + type + '">' + escapeHtml(message) + '</div>';
+    }
+
+    function clearActAlert() {
+        if (els.actAlertArea) els.actAlertArea.innerHTML = '';
+    }
+
+    function setActProgress(pct) {
+        if (els.actProgressBar) {
+            els.actProgressBar.style.width = pct + '%';
+            if (pct >= 100) els.actProgressBar.textContent = 'Complete';
+        }
     }
 
     // --- Boot ---

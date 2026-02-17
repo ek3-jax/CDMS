@@ -2,11 +2,13 @@
 /**
  * CDMS - Sync Orchestrator
  *
- * AJAX endpoint that handles the GHL -> Close contact sync process.
- * Supports three actions:
- *   - fetch:   Pull contacts from GoHighLevel
- *   - push:    Push contacts to Close CRM (with duplicate detection)
- *   - preview: Fetch GHL contacts and return them for review before pushing
+ * AJAX endpoint that handles sync between GHL and Close CRM.
+ * Supports these actions:
+ *   - fetch:          Pull contacts from GoHighLevel
+ *   - push:           Push contacts to Close CRM (with duplicate detection)
+ *   - preview:        Fetch GHL contacts and return them for review before pushing
+ *   - fetchActivities: Pull activities from Close CRM
+ *   - syncActivities:  Push Close activities as notes to matching GHL contacts
  */
 
 header('Content-Type: application/json');
@@ -41,9 +43,17 @@ try {
             handlePreview($input);
             break;
 
+        case 'fetchActivities':
+            handleFetchActivities($input);
+            break;
+
+        case 'syncActivities':
+            handleSyncActivities($input);
+            break;
+
         default:
             http_response_code(400);
-            echo json_encode(['error' => 'Invalid action. Use: fetch, push, or preview']);
+            echo json_encode(['error' => 'Invalid action']);
             break;
     }
 } catch (Throwable $e) {
@@ -201,4 +211,269 @@ function handlePreview(array $input): void
         'total'    => $result['total'],
         'page'     => $page,
     ]);
+}
+
+/**
+ * Fetch activities from Close CRM for display.
+ */
+function handleFetchActivities(array $input): void
+{
+    $type      = $input['activityType'] ?? '';
+    $dateAfter = $input['dateAfter'] ?? '';
+
+    cdms_log('INFO', 'SYNC', 'Fetching Close activities', ['type' => $type ?: 'all', 'dateAfter' => $dateAfter]);
+
+    $close = new CloseClient();
+    $allActivities = [];
+    $skip = 0;
+    $limit = 100;
+
+    // Paginate through all activities
+    while (true) {
+        $result = $close->fetchActivities($type, $skip, $limit, $dateAfter);
+
+        if ($result['error']) {
+            cdms_log('ERROR', 'SYNC', 'Activity fetch failed', ['error' => $result['error']]);
+            http_response_code(502);
+            echo json_encode(['error' => $result['error']]);
+            return;
+        }
+
+        $allActivities = array_merge($allActivities, $result['activities']);
+
+        if (!$result['hasMore'] || count($result['activities']) === 0) {
+            break;
+        }
+
+        $skip += $limit;
+
+        // Safety cap
+        if ($skip > 5000) {
+            cdms_log('INFO', 'SYNC', 'Activity fetch capped at 5000');
+            break;
+        }
+    }
+
+    // Resolve contact emails for activities that have a contact_id
+    $contactEmailCache = [];
+    foreach ($allActivities as &$activity) {
+        $contactId = $activity['contact_id'] ?? '';
+        if (empty($contactId)) {
+            $activity['_email'] = '';
+            continue;
+        }
+
+        if (isset($contactEmailCache[$contactId])) {
+            $activity['_email'] = $contactEmailCache[$contactId];
+            continue;
+        }
+
+        // For email activities, extract from sender/to fields
+        $actType = $activity['_type'] ?? '';
+        if ($actType === 'Email') {
+            $email = extractEmailAddress($activity['sender'] ?? '');
+            if (empty($email)) {
+                // Try the to field
+                $toList = $activity['to'] ?? [];
+                if (!empty($toList) && is_array($toList)) {
+                    $email = extractEmailAddress($toList[0] ?? '');
+                }
+            }
+            if (!empty($email)) {
+                $contactEmailCache[$contactId] = $email;
+                $activity['_email'] = $email;
+                continue;
+            }
+        }
+
+        // Fetch contact from Close to get email
+        $contactResult = $close->getContact($contactId);
+        $email = '';
+        if (!$contactResult['error'] && $contactResult['contact']) {
+            $emails = $contactResult['contact']['emails'] ?? [];
+            if (!empty($emails)) {
+                $email = $emails[0]['email'] ?? '';
+            }
+        }
+        $contactEmailCache[$contactId] = $email;
+        $activity['_email'] = $email;
+
+        usleep(100000); // 100ms rate limit
+    }
+    unset($activity);
+
+    cdms_log('INFO', 'SYNC', 'Activity fetch complete', ['count' => count($allActivities)]);
+
+    echo json_encode([
+        'success'    => true,
+        'activities' => $allActivities,
+        'total'      => count($allActivities),
+    ]);
+}
+
+/**
+ * Sync Close CRM activities to GHL as notes, matched by email.
+ */
+function handleSyncActivities(array $input): void
+{
+    $activities = $input['activities'] ?? [];
+
+    if (empty($activities)) {
+        cdms_log('ERROR', 'SYNC', 'syncActivities called with no activities');
+        http_response_code(400);
+        echo json_encode(['error' => 'No activities provided']);
+        return;
+    }
+
+    cdms_log('INFO', 'SYNC', 'Starting activity sync to GHL', ['count' => count($activities)]);
+
+    $ghl = new GHLClient();
+    $results = [
+        'synced'    => 0,
+        'noMatch'   => 0,
+        'failed'    => 0,
+        'details'   => [],
+    ];
+
+    // Cache GHL contact lookups by email
+    $ghlContactCache = [];
+
+    foreach ($activities as $activity) {
+        $email = $activity['_email'] ?? '';
+        $actType = $activity['_type'] ?? 'Activity';
+
+        if (empty($email)) {
+            $results['noMatch']++;
+            $results['details'][] = [
+                'type'   => $actType,
+                'email'  => '',
+                'status' => 'noMatch',
+                'reason' => 'No email associated with activity',
+            ];
+            continue;
+        }
+
+        // Look up GHL contact by email (cached)
+        if (!isset($ghlContactCache[$email])) {
+            $lookup = $ghl->lookupContactByEmail($email);
+            $ghlContactCache[$email] = $lookup;
+            usleep(100000); // 100ms rate limit
+        }
+
+        $ghlLookup = $ghlContactCache[$email];
+
+        if ($ghlLookup['error'] || empty($ghlLookup['contactId'])) {
+            $results['noMatch']++;
+            $results['details'][] = [
+                'type'   => $actType,
+                'email'  => $email,
+                'status' => 'noMatch',
+                'reason' => $ghlLookup['error'] ?: 'No matching contact in GHL',
+            ];
+            continue;
+        }
+
+        // Build note body from activity
+        $noteBody = formatActivityAsNote($activity);
+
+        // Create note on the GHL contact
+        $noteResult = $ghl->createNote($ghlLookup['contactId'], $noteBody);
+
+        if ($noteResult['error']) {
+            $results['failed']++;
+            $results['details'][] = [
+                'type'   => $actType,
+                'email'  => $email,
+                'status' => 'failed',
+                'reason' => $noteResult['error'],
+            ];
+        } else {
+            $results['synced']++;
+            $results['details'][] = [
+                'type'   => $actType,
+                'email'  => $email,
+                'status' => 'synced',
+            ];
+        }
+
+        usleep(200000); // 200ms rate limit
+    }
+
+    cdms_log('INFO', 'SYNC', 'Activity sync complete', [
+        'synced'  => $results['synced'],
+        'noMatch' => $results['noMatch'],
+        'failed'  => $results['failed'],
+    ]);
+
+    echo json_encode([
+        'success' => true,
+        'results' => $results,
+    ]);
+}
+
+/**
+ * Format a Close activity into a readable note for GHL.
+ */
+function formatActivityAsNote(array $activity): string
+{
+    $type = $activity['_type'] ?? 'Activity';
+    $date = $activity['date_created'] ?? $activity['activity_at'] ?? '';
+    $lines = ["[Close CRM {$type}] - {$date}"];
+
+    switch ($type) {
+        case 'Note':
+            $lines[] = $activity['note'] ?? $activity['note_html'] ?? '';
+            break;
+
+        case 'Call':
+            $dir = $activity['direction'] ?? '';
+            $dur = $activity['duration'] ?? 0;
+            $lines[] = "Direction: {$dir}";
+            $lines[] = "Duration: {$dur}s";
+            if (!empty($activity['disposition'])) {
+                $lines[] = "Disposition: {$activity['disposition']}";
+            }
+            if (!empty($activity['note'])) {
+                $lines[] = "Notes: {$activity['note']}";
+            }
+            break;
+
+        case 'Email':
+            $lines[] = "Subject: " . ($activity['subject'] ?? '(no subject)');
+            $lines[] = "From: " . ($activity['sender'] ?? '');
+            if (!empty($activity['body_preview'])) {
+                $lines[] = "Preview: {$activity['body_preview']}";
+            }
+            break;
+
+        case 'Meeting':
+            $lines[] = "Title: " . ($activity['title'] ?? '');
+            if (!empty($activity['starts_at'])) {
+                $lines[] = "Starts: {$activity['starts_at']}";
+            }
+            if (!empty($activity['ends_at'])) {
+                $lines[] = "Ends: {$activity['ends_at']}";
+            }
+            break;
+
+        default:
+            // Generic: dump the body/note if present
+            if (!empty($activity['note'])) {
+                $lines[] = $activity['note'];
+            }
+            break;
+    }
+
+    return implode("\n", array_filter($lines));
+}
+
+/**
+ * Extract an email address from a string like '"John Doe" <john@example.com>'.
+ */
+function extractEmailAddress(string $raw): string
+{
+    if (preg_match('/<([^>]+)>/', $raw, $m)) {
+        return $m[1];
+    }
+    return filter_var(trim($raw), FILTER_VALIDATE_EMAIL) ? trim($raw) : '';
 }
