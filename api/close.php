@@ -196,6 +196,16 @@ class CloseClient
             $params['date_created__gt'] = $dateAfter;
         }
 
+        // Request extra fields for richer sync data
+        $extraFields = [];
+        if ($type === 'call' || empty($type)) {
+            $extraFields[] = 'recording_url';
+            $extraFields[] = 'voicemail_url';
+        }
+        if (!empty($extraFields)) {
+            $params['_fields'] = implode(',', $extraFields);
+        }
+
         $url = $this->baseUrl . $endpoint . '?' . http_build_query($params);
 
         cdms_log('INFO', 'CLOSE', 'Fetching activities', ['type' => $type ?: 'all', 'skip' => $skip]);

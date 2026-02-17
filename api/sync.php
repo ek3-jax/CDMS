@@ -418,7 +418,7 @@ function formatActivityAsNote(array $activity): string
 {
     $type = $activity['_type'] ?? 'Activity';
     $date = $activity['date_created'] ?? $activity['activity_at'] ?? '';
-    $lines = ["[Close CRM {$type}] - {$date}"];
+    $lines = ["=== Close CRM {$type} ===", "Date: {$date}", ""];
 
     switch ($type) {
         case 'Note':
@@ -426,45 +426,118 @@ function formatActivityAsNote(array $activity): string
             break;
 
         case 'Call':
-            $dir = $activity['direction'] ?? '';
+            $dir = ucfirst($activity['direction'] ?? 'unknown');
             $dur = $activity['duration'] ?? 0;
+            $mins = floor($dur / 60);
+            $secs = $dur % 60;
+            $durationStr = $mins > 0 ? "{$mins}m {$secs}s" : "{$secs}s";
+            $status = $activity['status'] ?? '';
+
             $lines[] = "Direction: {$dir}";
-            $lines[] = "Duration: {$dur}s";
+            $lines[] = "Duration: {$durationStr} ({$dur} seconds)";
+            $lines[] = "Status: {$status}";
+
+            if (!empty($activity['phone'])) {
+                $lines[] = "Phone: {$activity['phone']}";
+            }
             if (!empty($activity['disposition'])) {
                 $lines[] = "Disposition: {$activity['disposition']}";
             }
+            if (!empty($activity['source'])) {
+                $lines[] = "Source: {$activity['source']}";
+            }
+
+            // Call notes
             if (!empty($activity['note'])) {
-                $lines[] = "Notes: {$activity['note']}";
+                $lines[] = "";
+                $lines[] = "--- Call Notes ---";
+                $lines[] = $activity['note'];
+            }
+
+            // Recording link
+            if (!empty($activity['recording_url'])) {
+                $lines[] = "";
+                $lines[] = "--- Call Recording ---";
+                $lines[] = $activity['recording_url'];
+            }
+
+            // Voicemail
+            if (!empty($activity['voicemail_url'])) {
+                $lines[] = "";
+                $lines[] = "--- Voicemail ---";
+                $lines[] = $activity['voicemail_url'];
             }
             break;
 
         case 'Email':
+            $dir = ucfirst($activity['direction'] ?? '');
+            $lines[] = "Direction: {$dir}";
             $lines[] = "Subject: " . ($activity['subject'] ?? '(no subject)');
             $lines[] = "From: " . ($activity['sender'] ?? '');
-            if (!empty($activity['body_preview'])) {
-                $lines[] = "Preview: {$activity['body_preview']}";
+
+            $to = $activity['to'] ?? [];
+            if (!empty($to) && is_array($to)) {
+                $lines[] = "To: " . implode(', ', $to);
+            }
+
+            if (!empty($activity['body_text'])) {
+                $lines[] = "";
+                $lines[] = "--- Email Body ---";
+                $lines[] = $activity['body_text'];
+            } elseif (!empty($activity['body_preview'])) {
+                $lines[] = "";
+                $lines[] = "--- Preview ---";
+                $lines[] = $activity['body_preview'];
+            }
+
+            // Email attachments
+            $attachments = $activity['attachments'] ?? [];
+            if (!empty($attachments)) {
+                $lines[] = "";
+                $lines[] = "--- Attachments ---";
+                foreach ($attachments as $att) {
+                    $name = $att['filename'] ?? 'unnamed';
+                    $url = $att['url'] ?? '';
+                    $lines[] = $url ? "{$name}: {$url}" : $name;
+                }
             }
             break;
 
         case 'Meeting':
-            $lines[] = "Title: " . ($activity['title'] ?? '');
+            $lines[] = "Title: " . ($activity['title'] ?? '(untitled)');
             if (!empty($activity['starts_at'])) {
                 $lines[] = "Starts: {$activity['starts_at']}";
             }
             if (!empty($activity['ends_at'])) {
                 $lines[] = "Ends: {$activity['ends_at']}";
             }
+
+            $attendees = $activity['attendees'] ?? [];
+            if (!empty($attendees)) {
+                $names = [];
+                foreach ($attendees as $a) {
+                    $names[] = $a['name'] ?? $a['email'] ?? 'unknown';
+                }
+                $lines[] = "Attendees: " . implode(', ', $names);
+            }
+
+            if (!empty($activity['user_note_html'])) {
+                $lines[] = "";
+                $lines[] = "--- Meeting Notes ---";
+                $lines[] = strip_tags($activity['user_note_html']);
+            }
             break;
 
         default:
-            // Generic: dump the body/note if present
             if (!empty($activity['note'])) {
                 $lines[] = $activity['note'];
             }
             break;
     }
 
-    return implode("\n", array_filter($lines));
+    return implode("\n", array_filter($lines, function ($line) {
+        return $line !== null;
+    }));
 }
 
 /**
