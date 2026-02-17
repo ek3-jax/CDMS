@@ -32,7 +32,7 @@ cdms_log('INFO', 'SYNC', "Action requested: {$action}");
 try {
     switch ($action) {
         case 'fetch':
-            handleFetch();
+            handleFetch($input);
             break;
 
         case 'push':
@@ -41,6 +41,10 @@ try {
 
         case 'preview':
             handlePreview($input);
+            break;
+
+        case 'fetchTags':
+            handleFetchTags();
             break;
 
         case 'fetchActivities':
@@ -68,13 +72,34 @@ try {
 }
 
 /**
- * Fetch all contacts from GoHighLevel.
+ * Fetch contacts from GoHighLevel.
+ *
+ * Supports optional filtering by tag or smart list ID.
+ * Contacts without an email address are excluded.
  */
-function handleFetch(): void
+function handleFetch(array $input): void
 {
-    cdms_log('INFO', 'SYNC', 'Starting GHL fetch all contacts');
-    $ghl    = new GHLClient();
-    $result = $ghl->fetchAllContacts();
+    $tag         = $input['tag'] ?? '';
+    $smartListId = $input['smartListId'] ?? '';
+
+    $ghl = new GHLClient();
+
+    // Use advanced search if any filter is set, otherwise fetch all
+    if (!empty($tag) || !empty($smartListId)) {
+        cdms_log('INFO', 'SYNC', 'Starting filtered GHL fetch', ['tag' => $tag, 'smartListId' => $smartListId]);
+        $result = $ghl->searchContactsAdvanced($tag, $smartListId);
+    } else {
+        cdms_log('INFO', 'SYNC', 'Starting GHL fetch all contacts');
+        $result = $ghl->fetchAllContacts();
+
+        // Filter out contacts without email (advanced search does this internally)
+        if (!$result['error']) {
+            $result['contacts'] = array_values(array_filter($result['contacts'], function ($c) {
+                return !empty($c['email']);
+            }));
+            $result['total'] = count($result['contacts']);
+        }
+    }
 
     if ($result['error']) {
         cdms_log('ERROR', 'SYNC', 'Fetch failed', ['error' => $result['error'], 'partial' => $result['total']]);
@@ -87,11 +112,34 @@ function handleFetch(): void
         return;
     }
 
-    cdms_log('INFO', 'SYNC', "Fetch complete: {$result['total']} contacts");
+    cdms_log('INFO', 'SYNC', "Fetch complete: {$result['total']} contacts (with email only)");
     echo json_encode([
         'success'  => true,
         'contacts' => $result['contacts'],
         'total'    => $result['total'],
+    ]);
+}
+
+/**
+ * Fetch available tags from GoHighLevel.
+ */
+function handleFetchTags(): void
+{
+    cdms_log('INFO', 'SYNC', 'Fetching GHL tags');
+    $ghl    = new GHLClient();
+    $result = $ghl->getTags();
+
+    if ($result['error']) {
+        cdms_log('ERROR', 'SYNC', 'Tag fetch failed', ['error' => $result['error']]);
+        http_response_code(502);
+        echo json_encode(['error' => $result['error']]);
+        return;
+    }
+
+    cdms_log('INFO', 'SYNC', 'Tags fetched: ' . count($result['tags']));
+    echo json_encode([
+        'success' => true,
+        'tags'    => $result['tags'],
     ]);
 }
 

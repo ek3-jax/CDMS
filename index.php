@@ -58,6 +58,21 @@
             </div>
         </div>
 
+        <!-- Filters -->
+        <div class="filter-row">
+            <span class="filter-label">Filters:</span>
+            <div class="filter-control">
+                <label class="filter-control-label" for="filter-tag">Tag</label>
+                <select id="filter-tag" class="filter-input">
+                    <option value="">All Tags</option>
+                </select>
+            </div>
+            <div class="filter-control">
+                <label class="filter-control-label" for="filter-smartlist">Smart List ID</label>
+                <input type="text" id="filter-smartlist" class="filter-input" placeholder="Optional Smart List ID">
+            </div>
+        </div>
+
         <!-- Action Buttons -->
         <div class="button-row">
             <button type="button" id="btn-fetch" class="btn-primary btn-lg">
