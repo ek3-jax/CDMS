@@ -2,8 +2,8 @@
 /**
  * CDMS - GoHighLevel API Client
  *
- * Handles fetching contacts from GoHighLevel using API v2.
- * Uses GET /contacts/ with query parameters.
+ * Handles fetching contacts and creating notes via GHL API v2.
+ * Uses GET /contacts/ for listing and POST for search/notes.
  */
 
 require_once __DIR__ . '/../includes/config.php';
@@ -30,8 +30,6 @@ class GHLClient
 
     /**
      * Fetch all contacts from GHL, handling pagination automatically.
-     *
-     * @return array{contacts: array, total: int, error: string|null}
      */
     public function fetchAllContacts(): array
     {
@@ -62,7 +60,6 @@ class GHLClient
                 break;
             }
 
-            // Use the last contact for cursor-based pagination
             $lastContact = end($contacts);
             $startAfterId = $lastContact['id'] ?? null;
             $startAfter = $lastContact['dateAdded'] ?? null;
@@ -81,12 +78,6 @@ class GHLClient
 
     /**
      * Get contacts with optional search query and cursor pagination.
-     *
-     * @param int         $page          Unused (kept for interface compat), pagination is cursor-based
-     * @param string      $query         Optional search query
-     * @param string|null $startAfterId  Contact ID to start after (cursor)
-     * @param string|null $startAfter    Timestamp to start after (cursor)
-     * @return array{contacts: array, total: int, error: string|null}
      */
     public function searchContacts(int $page = 1, string $query = '', ?string $startAfterId = null, ?string $startAfter = null): array
     {
@@ -109,7 +100,7 @@ class GHLClient
 
         cdms_log('INFO', 'GHL', 'Fetching contacts', ['url' => $url]);
 
-        $response = $this->makeRequest($url);
+        $response = $this->makeRequest('GET', $url);
 
         if ($response['error']) {
             cdms_log('ERROR', 'GHL', 'Failed to fetch contacts', [
@@ -137,15 +128,12 @@ class GHLClient
 
     /**
      * Fetch a single contact by ID.
-     *
-     * @param string $contactId
-     * @return array{contact: array|null, error: string|null}
      */
     public function getContact(string $contactId): array
     {
         $url = $this->baseUrl . '/contacts/' . urlencode($contactId);
 
-        $response = $this->makeRequest($url);
+        $response = $this->makeRequest('GET', $url);
 
         if ($response['error']) {
             return ['contact' => null, 'error' => $response['error']];
@@ -158,14 +146,93 @@ class GHLClient
     }
 
     /**
-     * Make a GET request to the GHL API.
+     * Look up a GHL contact by email address.
      *
-     * @param string $url Full URL
+     * @param string $email
+     * @return array{contactId: string|null, contact: array|null, error: string|null}
+     */
+    public function lookupContactByEmail(string $email): array
+    {
+        $params = [
+            'locationId' => $this->locationId,
+            'query'      => $email,
+            'limit'      => 1,
+        ];
+
+        $url = $this->baseUrl . '/contacts/?' . http_build_query($params);
+
+        cdms_log('DEBUG', 'GHL', 'Looking up contact by email', ['email' => $email]);
+
+        $response = $this->makeRequest('GET', $url);
+
+        if ($response['error']) {
+            cdms_log('ERROR', 'GHL', 'Email lookup failed', ['email' => $email, 'error' => $response['error']]);
+            return ['contactId' => null, 'contact' => null, 'error' => $response['error']];
+        }
+
+        $contacts = $response['data']['contacts'] ?? [];
+
+        // Find exact email match
+        foreach ($contacts as $contact) {
+            $contactEmail = $contact['email'] ?? '';
+            if (strcasecmp($contactEmail, $email) === 0) {
+                cdms_log('DEBUG', 'GHL', 'Contact found', ['email' => $email, 'contactId' => $contact['id']]);
+                return ['contactId' => $contact['id'], 'contact' => $contact, 'error' => null];
+            }
+        }
+
+        cdms_log('DEBUG', 'GHL', 'No matching contact found', ['email' => $email]);
+        return ['contactId' => null, 'contact' => null, 'error' => null];
+    }
+
+    /**
+     * Create a note on a GHL contact.
+     *
+     * @param string $contactId GHL contact ID
+     * @param string $body      Note text content
+     * @return array{note: array|null, error: string|null}
+     */
+    public function createNote(string $contactId, string $body): array
+    {
+        $url = $this->baseUrl . '/contacts/' . urlencode($contactId) . '/notes';
+
+        cdms_log('INFO', 'GHL', 'Creating note on contact', ['contactId' => $contactId]);
+
+        $response = $this->makeRequest('POST', $url, ['body' => $body]);
+
+        if ($response['error']) {
+            cdms_log('ERROR', 'GHL', 'Failed to create note', [
+                'contactId' => $contactId,
+                'error'     => $response['error'],
+            ]);
+            return ['note' => null, 'error' => $response['error']];
+        }
+
+        cdms_log('INFO', 'GHL', 'Note created', ['contactId' => $contactId]);
+        return ['note' => $response['data'], 'error' => null];
+    }
+
+    /**
+     * Make an HTTP request to the GHL API.
+     *
+     * @param string     $method HTTP method (GET or POST)
+     * @param string     $url    Full URL
+     * @param array|null $body   Request body for POST
      * @return array{data: array|null, error: string|null, httpCode: int}
      */
-    private function makeRequest(string $url): array
+    private function makeRequest(string $method, string $url, ?array $body = null): array
     {
         $ch = curl_init();
+
+        $headers = [
+            'Accept: application/json',
+            'Version: 2021-07-28',
+            'Authorization: Bearer ' . $this->apiKey,
+        ];
+
+        if ($method === 'POST') {
+            $headers[] = 'Content-Type: application/json';
+        }
 
         curl_setopt_array($ch, [
             CURLOPT_URL            => $url,
@@ -175,13 +242,13 @@ class GHLClient
             CURLOPT_TIMEOUT        => 0,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST  => 'GET',
-            CURLOPT_HTTPHEADER     => [
-                'Accept: application/json',
-                'Version: 2021-07-28',
-                'Authorization: Bearer ' . $this->apiKey,
-            ],
+            CURLOPT_CUSTOMREQUEST  => $method,
+            CURLOPT_HTTPHEADER     => $headers,
         ]);
+
+        if ($method === 'POST' && $body !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+        }
 
         $responseBody = curl_exec($ch);
         $httpCode     = curl_getinfo($ch, CURLINFO_HTTP_CODE);

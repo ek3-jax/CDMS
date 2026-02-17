@@ -18,6 +18,7 @@
             </a>
             <ul class="nav-links">
                 <li><a href="index.php" class="active">Contact Sync</a></li>
+                <li><a href="#activity-sync-section">Activity Sync</a></li>
             </ul>
             <span class="nav-status">
                 <span class="nav-status-dot" id="status-dot"></span>
@@ -137,6 +138,117 @@
 
             <!-- Activity Log -->
             <div class="log-container" id="sync-log" role="log" aria-label="Sync activity log"></div>
+        </div>
+
+        <!-- ========== Activity Sync Section ========== -->
+        <div id="activity-sync-section" style="margin-top: 3rem;">
+            <div class="page-header">
+                <h1 class="page-title">Activity Sync: Close CRM &rarr; GoHighLevel</h1>
+            </div>
+
+            <!-- Alert Area for Activity Sync -->
+            <div id="activity-alert-area"></div>
+
+            <!-- Activity Sync Flow -->
+            <div class="sync-flow">
+                <div class="sync-flow-node close">
+                    <span class="sync-flow-badge close">Close CRM</span>
+                    <span class="sync-flow-count" id="flow-act-close-count">0</span>
+                    <span class="sync-flow-label">Activities</span>
+                </div>
+                <div class="sync-flow-arrow">&rarr;</div>
+                <div class="sync-flow-node cdms-engine">
+                    <span class="sync-flow-badge cdms-engine">CDMS</span>
+                    <span class="sync-flow-count">Sync</span>
+                    <span class="sync-flow-label">Engine</span>
+                </div>
+                <div class="sync-flow-arrow">&rarr;</div>
+                <div class="sync-flow-node ghl">
+                    <span class="sync-flow-badge ghl">GoHighLevel</span>
+                    <span class="sync-flow-count" id="flow-act-ghl-count">0</span>
+                    <span class="sync-flow-label">Notes Created</span>
+                </div>
+            </div>
+
+            <!-- Activity Controls -->
+            <div class="button-row">
+                <select id="activity-type-select" class="btn-primary" style="padding: 0.6rem 1rem; border-radius: 6px; border: 1px solid #ccc;">
+                    <option value="">All Activities</option>
+                    <option value="note">Notes</option>
+                    <option value="call">Calls</option>
+                    <option value="email">Emails</option>
+                    <option value="meeting">Meetings</option>
+                </select>
+                <input type="date" id="activity-date-after" class="btn-primary" style="padding: 0.6rem 1rem; border-radius: 6px; border: 1px solid #ccc;" title="Only activities after this date">
+                <button type="button" id="btn-fetch-activities" class="btn-primary btn-lg">
+                    Fetch Close Activities
+                </button>
+                <button type="button" id="btn-sync-activities" class="btn-success btn-lg" disabled>
+                    Sync to GHL as Notes
+                </button>
+            </div>
+
+            <!-- Activity Stats -->
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-label">Activities Fetched</div>
+                    <div class="stat-value" id="stat-act-total">0</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-label">Synced to GHL</div>
+                    <div class="stat-value" id="stat-act-synced">0</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-label">No Match</div>
+                    <div class="stat-value" id="stat-act-nomatch">0</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="stat-label">Failed</div>
+                    <div class="stat-value" id="stat-act-failed">0</div>
+                </div>
+            </div>
+
+            <!-- Activities Table -->
+            <div class="card hidden" id="activities-card">
+                <div class="section-header">
+                    <h2 class="section-title">Close CRM Activities</h2>
+                    <span class="category-badge badge-close">Close</span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="col-checkbox">
+                                    <input type="checkbox" id="cb-select-all-act" aria-label="Select all activities">
+                                </th>
+                                <th>Type</th>
+                                <th>Email</th>
+                                <th>Summary</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activities-tbody">
+                            <tr>
+                                <td colspan="5" class="empty-state">
+                                    Click "Fetch Close Activities" to load activities
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Activity Sync Results -->
+            <div class="card hidden" id="activity-results-card">
+                <div class="section-header">
+                    <h2 class="section-title">Activity Sync Progress</h2>
+                    <span class="category-badge badge-ghl">GHL</span>
+                </div>
+                <div class="progress-bar hidden" id="act-progress-wrap">
+                    <div class="progress-fill" id="act-progress-bar"></div>
+                </div>
+                <div class="log-container" id="activity-sync-log" role="log" aria-label="Activity sync log"></div>
+            </div>
         </div>
 
     </div>
