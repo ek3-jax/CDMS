@@ -2,9 +2,9 @@
  * CDMS - Cydian Data Management System
  * Frontend Application Controller
  *
- * Handles two sync workflows:
- *   1. GHL -> Close: Fetch contacts from GoHighLevel, push to Close CRM
- *   2. Close -> GHL: Fetch activities from Close, push as notes to GHL
+ * Handles two sync workflows (on separate pages):
+ *   1. Contact Sync (index.php): GHL -> Close
+ *   2. Activity Sync (activities.php): Close -> GHL
  */
 
 (function () {
@@ -16,7 +16,6 @@
         selectedIds: {},
         syncing: false,
         fetching: false,
-        // Activity sync state
         activities: [],
         selectedActIds: {},
         fetchingActivities: false,
@@ -28,6 +27,20 @@
 
     // --- Initialize ---
     function init() {
+        // Detect which page we're on
+        var isContactPage = !!document.getElementById('btn-fetch');
+        var isActivityPage = !!document.getElementById('btn-fetch-activities');
+
+        if (isContactPage) {
+            initContactSync();
+        }
+
+        if (isActivityPage) {
+            initActivitySync();
+        }
+    }
+
+    function initContactSync() {
         els.fetchBtn      = document.getElementById('btn-fetch');
         els.pushBtn       = document.getElementById('btn-push');
         els.selectAllCb   = document.getElementById('cb-select-all');
@@ -46,7 +59,16 @@
         els.alertArea     = document.getElementById('alert-area');
         els.searchInput   = document.getElementById('search-input');
 
-        // Activity sync elements
+        els.fetchBtn.addEventListener('click', handleFetch);
+        els.pushBtn.addEventListener('click', handlePush);
+        els.selectAllCb.addEventListener('change', handleSelectAll);
+
+        if (els.searchInput) {
+            els.searchInput.addEventListener('input', handleSearch);
+        }
+    }
+
+    function initActivitySync() {
         els.fetchActBtn      = document.getElementById('btn-fetch-activities');
         els.syncActBtn       = document.getElementById('btn-sync-activities');
         els.actTypeSelect    = document.getElementById('activity-type-select');
@@ -66,16 +88,6 @@
         els.flowActGhlCount  = document.getElementById('flow-act-ghl-count');
         els.actAlertArea     = document.getElementById('activity-alert-area');
 
-        // Bind events
-        els.fetchBtn.addEventListener('click', handleFetch);
-        els.pushBtn.addEventListener('click', handlePush);
-        els.selectAllCb.addEventListener('change', handleSelectAll);
-
-        if (els.searchInput) {
-            els.searchInput.addEventListener('input', handleSearch);
-        }
-
-        // Activity sync events
         els.fetchActBtn.addEventListener('click', handleFetchActivities);
         els.syncActBtn.addEventListener('click', handleSyncActivities);
         els.selectAllActCb.addEventListener('change', handleSelectAllActivities);
@@ -105,7 +117,10 @@
         xhr.send(JSON.stringify(payload));
     }
 
-    // --- Fetch Contacts from GHL ---
+    // ==========================================================
+    // Contact Sync: GHL -> Close CRM
+    // ==========================================================
+
     function handleFetch() {
         if (state.fetching) return;
 
@@ -152,7 +167,6 @@
         });
     }
 
-    // --- Push Contacts to Close ---
     function handlePush() {
         var selected = getSelectedContacts();
 
@@ -195,7 +209,6 @@
             els.statFailed.textContent  = results.failed || 0;
             els.flowCloseCount.textContent = results.created || 0;
 
-            // Log each result
             for (var i = 0; i < details.length; i++) {
                 var d = details[i];
                 var label = d.name + (d.email ? ' (' + d.email + ')' : '');
@@ -224,7 +237,6 @@
         });
     }
 
-    // --- Render Contacts Table ---
     function renderContactsTable(contacts) {
         var html = '';
 
@@ -255,21 +267,18 @@
                     '<td>' + source + '</td>' +
                     '</tr>';
 
-            // Default: select all
             state.selectedIds[i] = true;
         }
 
         els.contactsTable.innerHTML = html;
         els.selectAllCb.checked = true;
 
-        // Bind individual checkbox events
         var checkboxes = els.contactsTable.querySelectorAll('.contact-cb');
         for (var j = 0; j < checkboxes.length; j++) {
             checkboxes[j].addEventListener('change', handleCheckboxChange);
         }
     }
 
-    // --- Checkbox Handlers ---
     function handleSelectAll() {
         var checked = els.selectAllCb.checked;
         var checkboxes = els.contactsTable.querySelectorAll('.contact-cb');
@@ -295,7 +304,6 @@
             delete state.selectedIds[idx];
         }
 
-        // Update select-all state
         var checkboxes = els.contactsTable.querySelectorAll('.contact-cb');
         var allChecked = true;
         for (var i = 0; i < checkboxes.length; i++) {
@@ -328,7 +336,6 @@
         }
     }
 
-    // --- Client-Side Search Filter ---
     function handleSearch() {
         var query = els.searchInput.value.toLowerCase().trim();
 
@@ -357,75 +364,36 @@
         renderContactsTable(filtered);
     }
 
-    // --- Logging (matches CAMS log-entry pattern) ---
+    // --- Contact Sync Logging/Alerts/Progress ---
     function log(type, message) {
         if (!els.logContainer) return;
-
         var now = new Date();
-        var time = padZero(now.getHours()) + ':' +
-                   padZero(now.getMinutes()) + ':' +
-                   padZero(now.getSeconds());
-
+        var time = padZero(now.getHours()) + ':' + padZero(now.getMinutes()) + ':' + padZero(now.getSeconds());
         var entry = document.createElement('div');
         entry.className = 'log-entry ' + type;
-        entry.innerHTML = '<span class="log-time">[' + time + ']</span> ' +
-                          escapeHtml(message);
-
+        entry.innerHTML = '<span class="log-time">[' + time + ']</span> ' + escapeHtml(message);
         els.logContainer.appendChild(entry);
         els.logContainer.scrollTop = els.logContainer.scrollHeight;
     }
 
     function clearLog() {
-        if (els.logContainer) {
-            els.logContainer.innerHTML = '';
-        }
+        if (els.logContainer) els.logContainer.innerHTML = '';
     }
 
-    // --- Alerts (matches CAMS alert pattern) ---
     function showAlert(type, message) {
         if (!els.alertArea) return;
-        els.alertArea.innerHTML = '<div class="alert ' + type + '">' +
-                                  escapeHtml(message) + '</div>';
+        els.alertArea.innerHTML = '<div class="alert ' + type + '">' + escapeHtml(message) + '</div>';
     }
 
     function clearAlert() {
-        if (els.alertArea) {
-            els.alertArea.innerHTML = '';
-        }
+        if (els.alertArea) els.alertArea.innerHTML = '';
     }
 
-    // --- Progress ---
     function setProgress(pct) {
         if (els.progressBar) {
             els.progressBar.style.width = pct + '%';
-            if (pct >= 100) {
-                els.progressBar.textContent = 'Complete';
-            }
+            if (pct >= 100) els.progressBar.textContent = 'Complete';
         }
-    }
-
-    // --- Utility ---
-    function formatName(contact) {
-        var name = ((contact.firstName || '') + ' ' + (contact.lastName || '')).trim();
-        return name || contact.name || 'Unknown';
-    }
-
-    function escapeHtml(str) {
-        var div = document.createElement('div');
-        div.appendChild(document.createTextNode(str));
-        return div.innerHTML;
-    }
-
-    function padZero(n) {
-        return n < 10 ? '0' + n : String(n);
-    }
-
-    function showElement(el) {
-        if (el) el.classList.remove('hidden');
-    }
-
-    function hideElement(el) {
-        if (el) el.classList.add('hidden');
     }
 
     // ==========================================================
@@ -687,6 +655,33 @@
             els.actProgressBar.style.width = pct + '%';
             if (pct >= 100) els.actProgressBar.textContent = 'Complete';
         }
+    }
+
+    // ==========================================================
+    // Shared Utilities
+    // ==========================================================
+
+    function formatName(contact) {
+        var name = ((contact.firstName || '') + ' ' + (contact.lastName || '')).trim();
+        return name || contact.name || 'Unknown';
+    }
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+
+    function padZero(n) {
+        return n < 10 ? '0' + n : String(n);
+    }
+
+    function showElement(el) {
+        if (el) el.classList.remove('hidden');
+    }
+
+    function hideElement(el) {
+        if (el) el.classList.add('hidden');
     }
 
     // --- Boot ---

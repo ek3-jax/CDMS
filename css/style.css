@@ -402,6 +402,61 @@ button:disabled {
     flex: 1;
 }
 
+/* Filter Row */
+.filter-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    background: white;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-left: 4px solid #FF6600;
+}
+
+.filter-label {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #FF6600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    align-self: center;
+}
+
+.filter-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.filter-control-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--secondary-text);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.filter-input {
+    padding: 0.7rem 1rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border: 2px solid #FF6600;
+    border-radius: 6px;
+    background: white;
+    color: var(--text-color);
+    min-width: 180px;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+
+.filter-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.2);
+}
+
 /* Search Input - matches CAMS form-control */
 .search-box {
     display: flex;
